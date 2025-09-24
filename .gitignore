@@ -1,1 +1,3 @@
 .ipynb*
+*.log
+__marimo__
