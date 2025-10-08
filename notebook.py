@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.16.1"
 app = marimo.App(width="medium")
 
 
@@ -38,81 +38,84 @@ def _(mo):
 
 
 @app.cell
-def _():
-    # The setup
-    # Make work on a sub sample, scale up
-    return
+def _(datetime, os, out, pd):
+    # fetch results from API with a unique draw number
+    def fetch_data_from_api(drawnumber):
+        URL = "https://api.spela.svenskaspel.se/draw/1/stryktipset/draws/" + drawnumber + "/result"
+        print("Using URL: " + URL)
+        page = pd.read_json(URL)
+        return(page)
+
+    def curate_results(page):
+        # split the json
+        events = page["result"]["events"]
+        result = pd.json_normalize(events, sep="_")
+    
+        # refactor, json_normalize(events, sep="_") # merge the keys with underscore
+
+        # Extract home and away team names
+        result["team_home"] = result["participants"].apply(lambda x: next(p["name"] for p in x if p["type"] == "home"))
+        result["team_away"] = result["participants"].apply(lambda x: next(p["name"] for p in x if p["type"] == "away"))
+
+        # Extract home and away team IDs
+        # Note, some teams lack shortName format. Use NaN for those, they are not interesting anyway
+        result["team_home_id"] = result["participants"].apply(
+            lambda x: ", ".join(p.get("shortName", "NaN") for p in x if p["type"] == "home")
+        )
+        result["team_away_id"] = result["participants"].apply(
+            lambda x: ", ".join(p.get("shortName", "NaN") for p in x if p["type"] == "away")
+        )
+        #result["team_home_id"] = result["participants"].apply(lambda x: next(p["shortName"] for p in x if p["type"] == "home"))
+        #result["team_away_id"] = result["participants"].apply(lambda x: next(p["shortName"] for p in x if p["type"] == "away"))
+    
+        # Extract country
+        result["country"] = result["participants"].apply(
+            lambda x: x[0]["countryName"] if x[0]["countryName"] == x[1]["countryName"]
+            else f"{x[0]['countryName']}, {x[1]['countryName']}"
+        )
+
+        out = result.rename(columns={
+            "eventDescription": "event",
+            "outcomeScore_home": "score_home",
+            "outcomeScore_away": "score_away"
+        })
+        out = out[["outcome", "score_home", "score_away", "team_home", "team_away", "team_home_id", "team_away_id", "country"]]
+
+        # add date column w/ date in datetime format
+        date = page["result"]["regCloseTime"]
+        date = date.split("T")[0]
+        date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
+        out["date"] = date
+        out["draw_number"] = page["result"]["drawNumber"]
+        #print(out)
+        return(out)
+
+    def save_results():
+        filename = "results.csv"
+
+        if not os.path.isfile(filename):
+            # Write header if file does not exist
+            print("File not found, generating one")
+            out.to_csv(filename, index=False)
+        else:
+            # Append without header
+            print("Appending the results")
+            out.to_csv(filename, mode="a", index=False, header=False)
+    return curate_results, fetch_data_from_api
 
 
 @app.cell
-def _(pd):
-    # fetch results from URL
-    URL = "https://api.spela.svenskaspel.se/draw/1/stryktipset/draws/4912/result"
-    page = pd.read_json(URL)
-    return (page,)
-
-
-@app.cell
-def _(datetime, page, pd):
-    # split the json
-    events = page["result"]["events"]
-    result = pd.json_normalize(events)
-
-    # refactor, json_normalize(events, sep="_") # merge the keys with underscore
-
-    drawNumber = page["result"]["drawNumber"]
-    date = page["result"]["regCloseTime"]
-    date = date.split("T")[0]
-    date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
-
-    #print(drawNumber)
-    #print(date)
-    #print(result)
-    #print(result.columns)
-    return date, drawNumber, result
-
-
-@app.cell
-def _(date, drawNumber, result):
-    # Extract home and away team names
-    result["team.home"] = result["participants"].apply(lambda x: next(p["name"] for p in x if p["type"] == "home"))
-    result["team.away"] = result["participants"].apply(lambda x: next(p["name"] for p in x if p["type"] == "away"))
-    result["team.home.id"] = result["participants"].apply(lambda x: next(p["shortName"] for p in x if p["type"] == "home"))
-    result["team.away.id"] = result["participants"].apply(lambda x: next(p["shortName"] for p in x if p["type"] == "away"))
-    result["country"] = result["participants"].apply(
-        lambda x: x[0]["countryName"] if x[0]["countryName"] == x[1]["countryName"]
-        else f"{x[0]['countryName']}, {x[1]['countryName']}"
-    )
-
-    out = result.rename(columns={
-        "eventDescription": "event",
-        "outcomeScore.home": "score.home",
-        "outcomeScore.away": "score.away"
-    })
-    out = out[["outcome", "score.home", "score.away", "team.home", "team.away", "team.home.id", "team.away.id", "country"]]
-
-    out["date"] = date
-    out["drawNumber"] = drawNumber
-
-    #print(result[["eventDescription", "outcome", "outcomeScore.home", "outcomeScore.away", "home_team", "away_team", "home_team_short", "away_team_short", "country"]].to_string())
-    #print(out[["event", "outcome", "score.home", "score.away", "team.home", "team.away", "team.home.id", "team.away.id", "country"]].to_string())
-    print(out)
+def _(curate_results, fetch_data_from_api):
+    drawnumber = "4697"
+    page = fetch_data_from_api(drawnumber)
+    out = curate_results(page)
+    #print(out)
+    #save_results(out)
     return (out,)
 
 
 @app.cell
-def _(os, out):
-    # save output
-    filename = "results.csv"
-
-    if not os.path.isfile(filename):
-        # Write header if file does not exist
-        print("file not found, generating one")
-        out.to_csv(filename, index=False)
-    else:
-        # Append without header
-        print("appends the results")
-        out.to_csv(filename, mode="a", index=False, header=False)
+def _():
     return
 
 

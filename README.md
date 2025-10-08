@@ -1,6 +1,6 @@
 # README
 
-This project gathers all the football results from [stryktipset]() and holds all the data inside a `csv`-file.
+This project gathers all the football results from [stryktipset](https://spela.svenskaspel.se/stryktipset) and holds all the data inside a `csv`-file.
 
 ## Approach
 
@@ -55,10 +55,5 @@ This project gathers all the football results from [stryktipset]() and holds all
 
 ## The code
 
-explain how the code works, what it extracts and how it saves the csv
-
-The table to reproduce is from coupon 4211 from 2025 June 26.
-
-```py
-URL = "https://api.spela.svenskaspel.se/draw/1/stryktipset/draws/4912/result"
-```
++ `bin/gather_results.py`, gathers results from early 2020 (`drawnumber = 4631`) to september 2025 (`drawnumber = 4921`) and saves to `results.csv`
++ `bin/fetch_results.py`, pings the API ones a week and appends the `results.csv`

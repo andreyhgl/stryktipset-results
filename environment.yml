@@ -1,0 +1,8 @@
+name: stryket
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - marimo=0.16.1
+  - pandas
+  - numpy
