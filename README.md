@@ -1,6 +1,8 @@
 # README
 
-This project gathers all the football results from [stryktipset](https://spela.svenskaspel.se/stryktipset) and holds all the data inside a `csv`-file.
+This project gathers all the football results from [stryktipset](https://spela.svenskaspel.se/stryktipset) and holds all the data inside `results.csv`
+
+---
 
 ## Approach
 
