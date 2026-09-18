@@ -46,12 +46,19 @@ jobs:
 
       - name: Commit and push if the data changed
         run: |
-          if git diff --quiet -- results.csv; then
+          if [ ! -f results.csv ]; then
+            echo "::error::results.csv is missing"
+            exit 1
+          fi
+          
+          git add results.csv
+
+          if git diff --cached --quiet -- results.csv; then
             echo "No new results, nothing to commit"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add results.csv
-          git commit -m "github-actions: add new results @ $(date +'%Y-%m-%d %H:%M:%S')"
+          git commit -m "github-actions: add new results @ $(date -u +'%Y-%m-%d %H:%M:%S')"
           git push
