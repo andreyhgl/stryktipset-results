@@ -38,7 +38,7 @@ def _(mo):
 
 
 @app.cell
-def _(datetime, os, out, pd):
+def _(datetime, os, pd):
     # fetch results from API with a unique draw number
     def fetch_data_from_api(drawnumber):
         URL = "https://api.spela.svenskaspel.se/draw/1/stryktipset/draws/" + drawnumber + "/result"
@@ -50,7 +50,7 @@ def _(datetime, os, out, pd):
         # split the json
         events = page["result"]["events"]
         result = pd.json_normalize(events, sep="_")
-    
+
         # refactor, json_normalize(events, sep="_") # merge the keys with underscore
 
         # Extract home and away team names
@@ -67,7 +67,7 @@ def _(datetime, os, out, pd):
         )
         #result["team_home_id"] = result["participants"].apply(lambda x: next(p["shortName"] for p in x if p["type"] == "home"))
         #result["team_away_id"] = result["participants"].apply(lambda x: next(p["shortName"] for p in x if p["type"] == "away"))
-    
+
         # Extract country
         result["country"] = result["participants"].apply(
             lambda x: x[0]["countryName"] if x[0]["countryName"] == x[1]["countryName"]
@@ -90,7 +90,7 @@ def _(datetime, os, out, pd):
         #print(out)
         return(out)
 
-    def save_results():
+    def save_results(out):
         filename = "results.csv"
 
         if not os.path.isfile(filename):
@@ -108,10 +108,58 @@ def _(datetime, os, out, pd):
 def _(curate_results, fetch_data_from_api):
     drawnumber = "4697"
     page = fetch_data_from_api(drawnumber)
-    out = curate_results(page)
-    #print(out)
+    result = curate_results(page)
+    print(result.to_string())
+
     #save_results(out)
-    return (out,)
+    return
+
+
+@app.cell
+def _(pd):
+    # Import results
+    df = pd.read_csv("results.csv")
+    #print(df)
+    return (df,)
+
+
+@app.cell
+def _(df):
+    # What results are the most common
+    #print(df)
+    res = df[df['country'] == "England"]
+    #res = df
+    print(res["outcome"].value_counts(normalize=True).mul(100).round(1).astype("str") + "%")
+    return
+
+
+@app.cell
+def _(df):
+    def filter_team_home(team_home, outcome):
+        team_home = df[df["team_home"] == team_home]
+        print(team_home["outcome"].value_counts())
+        #print(team_home[team_home["outcome"] == outcome].to_string())
+
+    def filter_team_away(team_away, outcome):
+        team_away = df[df["team_away"] == team_away]
+        print(team_away["outcome"].value_counts())
+        #print(team_away[team_away["outcome"] == outcome].to_string())
+
+    filter_team_home("Stoke", "1")
+    filter_team_away("Wrexham", "1")
+    return
+
+
+@app.cell
+def _(df):
+    # subset/filter out all Arsenal home games
+    arsenal_home = df[df["team_home"] == "Arsenal"]
+    print(arsenal_home["outcome"].value_counts())
+
+    # which team draw and won against Arsenal?
+    print(arsenal_home[arsenal_home["outcome"] == "X"])
+    print(arsenal_home[arsenal_home["outcome"] == "2"])
+    return
 
 
 @app.cell

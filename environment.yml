@@ -6,3 +6,5 @@ dependencies:
   - marimo=0.16.1
   - pandas
   - numpy
+  - pytest
+  - requests

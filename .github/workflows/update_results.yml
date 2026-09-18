@@ -1,0 +1,57 @@
+name: Update results
+
+on:
+  schedule:
+    # Sun-Wed 06:00 UTC
+    - cron: "0 6 * * 0-3"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "First draw number (optional)"
+        required: false
+      end:
+        description: "Last draw number (optional)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-results
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Every step below runs inside a container
+    container:
+      image: ghcr.io/andreyhgl/py-webscrape:latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Let git trust the checked-out workspace
+        # Set workspace inside the container to "safe" for git to reach it
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Fetch new results
+        run: |
+          python -m stryktipset \
+            --output results.csv \
+            ${{ inputs.start && format('--start {0}', inputs.start) || '' }} \
+            ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
+
+      - name: Commit and push if the data changed
+        run: |
+          if git diff --quiet -- results.csv; then
+            echo "No new results, nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add results.csv
+          git commit -m "github-actions: add new results @ $(date +'%Y-%m-%d %H:%M:%S')"
+          git push
