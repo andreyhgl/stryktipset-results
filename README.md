@@ -291,6 +291,13 @@ Two container-specific details in the workflow:
 ```yaml
 - run: python -m stryktipset --output results.csv
 - run: |
+    if [ ! -f results.csv ]; then
+      echo "::error::results.csv is missing"
+      exit 1
+    fi
+
+    git add results.csv
+
     if git diff --quiet -- results.csv; then
       echo "No new results, nothing to commit"
       exit 0
