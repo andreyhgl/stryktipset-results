@@ -97,10 +97,17 @@ def fetch_result(drawnumber, **kwargs):
 
 
 def latest_drawnumber(**kwargs):
-    """Highest draw number the API knows about (normally the open one)."""
+    """Highest draw number the API lists, or None if it lists none.
+
+    The /draws endpoint only reports draws that are open for betting.
+    Between the settlement of one week's draw and the opening of the
+    next it is legitimately empty, so an empty list is a normal state
+    and must not be treated as a failure.
+    """
     payload = get_json(f"{BASE_URL}/draws", **kwargs)
     draws = payload.get("draws") or []
     numbers = [d["drawNumber"] for d in draws if "drawNumber" in d]
     if not numbers:
-        raise ApiError("No draws returned by the draws endpoint")
+        log.warning("The draws endpoint listed no open draws")
+        return None
     return max(numbers)

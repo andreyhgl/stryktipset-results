@@ -22,6 +22,7 @@ FIRST_DRAW = 4631  # first draw of January 2020
 DEFAULT_OUTPUT = "results.csv"
 SLEEP_SECONDS = 0.5
 MAX_MISSES = 5
+LOOKAHEAD = 5
 
 
 def parse_args(argv=None):
@@ -74,7 +75,11 @@ def resolve_range(args, existing):
     end = args.end
     if end is None:
         end = api.latest_drawnumber()
-        log.info("Latest draw known to the API: %s", end)
+        if end is None:
+            end = start + LOOKAHEAD
+            log.info("No open draws listed, probing up to %d", end)
+        else:
+            log.info("Latest draw known to the API: %s", end)
 
     return start, end
 
