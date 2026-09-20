@@ -8,10 +8,10 @@ one-off backfill (empty file) and the weekly update (full file).
 from __future__ import annotations
 
 import argparse
+import itertools
 import logging
 import sys
 import time
-
 import pandas as pd
 
 from . import api, parse, storage
@@ -22,7 +22,6 @@ FIRST_DRAW = 4631  # first draw of January 2020
 DEFAULT_OUTPUT = "results.csv"
 SLEEP_SECONDS = 0.5
 MAX_MISSES = 5
-LOOKAHEAD = 5
 
 
 def parse_args(argv=None):
@@ -76,8 +75,7 @@ def resolve_range(args, existing):
     if end is None:
         end = api.latest_drawnumber()
         if end is None:
-            end = start + LOOKAHEAD
-            log.info("No open draws listed, probing up to %d", end)
+            log.info("No open draws listed, fetching until the numbering ends")
         else:
             log.info("Latest draw known to the API: %s", end)
 
@@ -85,11 +83,22 @@ def resolve_range(args, existing):
 
 
 def collect(start, end, sleep):
-    """Fetch every finished draw in the range, skipping the rest."""
+    """Fetch every finished draw in the range, skipping the rest.
+
+    `end` may be None, meaning "keep going until MAX_MISSES draws in a
+    row come back missing" - which is the real stopping condition in
+    either case.
+    """
     frames = []
     misses = 0
 
-    for drawnumber in range(start, end + 1):
+    if end is None:
+        numbers = itertools.count(start)
+    else:
+        numbers = range(start, end + 1)
+
+    for drawnumber in numbers:
+
         result = api.fetch_result(drawnumber)
 
         if result is None:
@@ -134,13 +143,17 @@ def main(argv=None):
         log.error("Could not work out the draw range: %s", err)
         return 1
 
-    if start > end:
+    if end is not None and start > end:
         log.info("Nothing to do, %s is up to date", args.output)
         return 0
 
-    log.info("Fetching draws %d-%d", start, end)
+    if end is None:
+        log.info("Fetching draws from %d onwards", start)
+    else:
+        log.info("Fetching draws %d-%d", start, end)
     try:
         new = collect(start, end, args.sleep)
+    
     except api.ApiError as err:
         log.error("Aborted: %s", err)
         return 1
